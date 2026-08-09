@@ -12,6 +12,10 @@ const props = defineProps({
 const departures = ref([])
 const status = ref('live')
 const updatedAt = ref(null)
+// Separate from status, which describes the outcome of a request that has
+// already happened. Without it an empty board claims there are no departures
+// before the first request has even resolved.
+const loading = ref(true)
 
 let interval = null
 
@@ -21,6 +25,7 @@ const load = async () => {
   departures.value = result.departures
   status.value = result.status
   updatedAt.value = result.updatedAt
+  loading.value = false
 }
 
 const startPolling = () => {
@@ -78,7 +83,9 @@ onBeforeUnmount(() => {
       </span>
     </div>
 
-    <p v-if="departures.length === 0" class="text-gray-400">
+    <p v-if="loading" class="text-gray-400">Ładowanie odjazdów...</p>
+
+    <p v-else-if="departures.length === 0" class="text-gray-400">
       <template v-if="status === 'live'">Brak najbliższych odjazdów.</template>
       <template v-else>Brak zapisanych danych dla tego przystanku.</template>
     </p>

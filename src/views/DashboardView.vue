@@ -41,7 +41,14 @@ const favoriteIds = computed(() => new Set(favoriteStops.value.map((item) => ite
 const loadFavorites = async () => {
   if (!auth.user) return
 
-  favoriteStops.value = await db.favoriteStops.where('userId').equals(auth.user.id).toArray()
+  try {
+    favoriteStops.value = await db.favoriteStops.where('userId').equals(auth.user.id).toArray()
+  } catch (err) {
+    // Called without await from onMounted, so an unguarded rejection here
+    // would surface as an unhandled rejection and nothing else.
+    console.error(err)
+    actionError.value = 'Nie udało się wczytać ulubionych przystanków.'
+  }
 }
 
 const addFavorite = async (stop) => {
