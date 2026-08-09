@@ -30,6 +30,11 @@ const login = async () => {
 
     auth.login(user)
     router.push('/')
+  } catch (error) {
+    // Without this the form silently does nothing when IndexedDB is blocked
+    // or the database fails to open.
+    console.error(error)
+    errorMessage.value = 'Logowanie nie powiodło się. Spróbuj ponownie.'
   } finally {
     busy.value = false
   }
@@ -38,13 +43,12 @@ const login = async () => {
 
 <template>
   <div class="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-    <form
-      @submit.prevent="login"
-      class="bg-slate-800 p-8 rounded-xl w-96"
-    >
+    <form @submit.prevent="login" class="bg-slate-800 p-8 rounded-xl w-96">
       <h1 class="text-3xl font-bold mb-6">Logowanie</h1>
 
+      <label class="sr-only" for="login-username">Login</label>
       <input
+        id="login-username"
         v-model="username"
         type="text"
         placeholder="Login"
@@ -52,7 +56,9 @@ const login = async () => {
         class="w-full mb-4 p-3 rounded bg-slate-700"
       />
 
+      <label class="sr-only" for="login-password">Hasło</label>
       <input
+        id="login-password"
         v-model="password"
         type="password"
         placeholder="Hasło"
@@ -60,7 +66,7 @@ const login = async () => {
         class="w-full mb-4 p-3 rounded bg-slate-700"
       />
 
-      <p v-if="errorMessage" class="mb-4 text-red-400">{{ errorMessage }}</p>
+      <p v-if="errorMessage" role="alert" class="mb-4 text-red-400">{{ errorMessage }}</p>
 
       <button
         type="submit"

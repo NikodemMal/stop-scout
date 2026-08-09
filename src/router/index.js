@@ -21,6 +21,12 @@ const routes = [
     path: '/register',
     component: RegisterView,
     meta: { guestOnly: true }
+  },
+  // The PWA serves index.html for every path, so without this a typo or a
+  // stale bookmark renders an empty router-view and looks like a broken app.
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/'
   }
 ]
 
@@ -31,7 +37,6 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const auth = useAuthStore()
-
   const isLoggedIn = !!auth.user
 
   if (to.meta.requiresAuth && !isLoggedIn) {

@@ -33,19 +33,22 @@ const register = async () => {
   busy.value = true
 
   try {
-    const existing = await db.users.where('username').equals(login).first()
-
-    if (existing) {
-      errorMessage.value = 'Taki login już istnieje.'
-      return
-    }
-
     await db.users.add({
       username: login,
       password: await bcrypt.hash(password.value, BCRYPT_ROUNDS)
     })
 
     router.push('/login')
+  } catch (error) {
+    // The username index is unique, so the duplicate check is the failed
+    // insert itself rather than a read beforehand, which two tabs could race.
+    if (error?.name === 'ConstraintError') {
+      errorMessage.value = 'Taki login już istnieje.'
+      return
+    }
+
+    console.error(error)
+    errorMessage.value = 'Nie udało się utworzyć konta. Spróbuj ponownie.'
   } finally {
     busy.value = false
   }
@@ -54,13 +57,12 @@ const register = async () => {
 
 <template>
   <div class="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-    <form
-      @submit.prevent="register"
-      class="bg-slate-800 p-8 rounded-xl w-96"
-    >
+    <form @submit.prevent="register" class="bg-slate-800 p-8 rounded-xl w-96">
       <h1 class="text-3xl font-bold mb-6">Rejestracja</h1>
 
+      <label class="sr-only" for="register-username">Login</label>
       <input
+        id="register-username"
         v-model="username"
         type="text"
         placeholder="Login"
@@ -68,7 +70,9 @@ const register = async () => {
         class="w-full mb-4 p-3 rounded bg-slate-700"
       />
 
+      <label class="sr-only" for="register-password">Hasło</label>
       <input
+        id="register-password"
         v-model="password"
         type="password"
         placeholder="Hasło"
@@ -76,7 +80,7 @@ const register = async () => {
         class="w-full mb-4 p-3 rounded bg-slate-700"
       />
 
-      <p v-if="errorMessage" class="mb-4 text-red-400">{{ errorMessage }}</p>
+      <p v-if="errorMessage" role="alert" class="mb-4 text-red-400">{{ errorMessage }}</p>
 
       <button
         type="submit"
@@ -88,9 +92,7 @@ const register = async () => {
 
       <p class="mt-4 text-sm text-gray-400">
         Masz już konto?
-        <RouterLink to="/login" class="text-blue-400 hover:underline">
-          Zaloguj się
-        </RouterLink>
+        <RouterLink to="/login" class="text-blue-400 hover:underline">Zaloguj się</RouterLink>
       </p>
     </form>
   </div>
