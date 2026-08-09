@@ -35,33 +35,23 @@ export default defineConfig({
       workbox: {
         runtimeCaching: [
           {
-            // Departures change constantly, so the network wins and the
-            // cache is only a 5 minute safety net.
-            urlPattern: ({ url }) => url.pathname.includes('departures'),
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'departures-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 5
-              }
-            }
-          },
-
-          {
-            // The stop list changes once a day, so serve it from cache
-            // and refresh after 24 hours.
+            // Stale-while-revalidate rather than cache-first: cache-first with
+            // an expiry treats an aged entry as a miss and falls through to the
+            // network, so the stop list stopped working offline after a day.
+            // This serves the cached copy immediately and refreshes it in the
+            // background whenever the network is there.
             urlPattern: ({ url }) => url.pathname.includes('stops'),
-            handler: 'CacheFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'stops-cache',
-              expiration: {
-                maxEntries: 1,
-                maxAgeSeconds: 60 * 60 * 24
-              }
+              expiration: { maxEntries: 1 }
             }
           }
         ]
+        // Departures are deliberately not cached here. The service worker
+        // would answer an offline request with ok: true from its own cache,
+        // and fetchDepartures would report minutes-old times as live. The
+        // app caches them in IndexedDB instead, where it can label them.
       }
     })
   ],

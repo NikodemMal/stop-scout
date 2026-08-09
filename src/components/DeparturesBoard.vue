@@ -10,7 +10,7 @@ const props = defineProps({
 })
 
 const departures = ref([])
-const fromCache = ref(false)
+const status = ref('live')
 const updatedAt = ref(null)
 
 let interval = null
@@ -19,41 +19,68 @@ const load = async () => {
   const result = await fetchDepartures(props.stopId)
 
   departures.value = result.departures
-  fromCache.value = result.fromCache
+  status.value = result.status
   updatedAt.value = result.updatedAt
+}
+
+const startPolling = () => {
+  if (interval) return
+
+  load()
+  interval = setInterval(load, REFRESH_MS)
+}
+
+const stopPolling = () => {
+  clearInterval(interval)
+  interval = null
+}
+
+// Every favourite mounts its own board, so without pausing on a hidden tab a
+// user with a dozen favourites keeps hammering the public ZTM endpoint in the
+// background and risks being throttled.
+const handleVisibilityChange = () => {
+  if (document.hidden) stopPolling()
+  else startPolling()
 }
 
 const formatTime = (value) =>
   new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
 onMounted(() => {
-  load()
-  interval = setInterval(load, REFRESH_MS)
+  startPolling()
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
-// Without this every unmounted board keeps polling in the background.
 onBeforeUnmount(() => {
-  clearInterval(interval)
+  stopPolling()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 
 <template>
   <div class="bg-slate-800 p-4 rounded-xl mt-3">
-    <div class="flex justify-between items-center mb-2">
-      <h3 class="text-lg font-bold">
-        {{ stopName }}
-      </h3>
+    <div class="flex justify-between items-center gap-3 mb-2">
+      <h3 class="text-lg font-bold">{{ stopName }}</h3>
 
       <span
-        v-if="fromCache"
+        v-if="status === 'offline'"
         class="text-xs bg-amber-900 text-amber-200 px-2 py-1 rounded"
       >
-        Offline<template v-if="updatedAt"> - dane z {{ formatTime(updatedAt) }}</template>
+        Brak sieci<template v-if="updatedAt"> - dane z {{ formatTime(updatedAt) }}</template>
+      </span>
+
+      <span
+        v-else-if="status === 'error'"
+        class="text-xs bg-red-900 text-red-200 px-2 py-1 rounded"
+      >
+        Serwis ZTM nie odpowiada<template v-if="updatedAt">
+          - dane z {{ formatTime(updatedAt) }}</template>
       </span>
     </div>
 
     <p v-if="departures.length === 0" class="text-gray-400">
-      {{ fromCache ? 'Brak zapisanych danych dla tego przystanku.' : 'Brak najbliższych odjazdów.' }}
+      <template v-if="status === 'live'">Brak najbliższych odjazdów.</template>
+      <template v-else>Brak zapisanych danych dla tego przystanku.</template>
     </p>
 
     <div

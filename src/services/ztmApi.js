@@ -6,7 +6,7 @@ export const fetchStops = async () => {
   const response = await fetch('/stops.json')
 
   if (!response.ok) {
-    throw new Error(`Nie udało się pobrać listy przystanków (HTTP ${response.status})`)
+    throw new Error(`Stop list request failed with HTTP ${response.status}`)
   }
 
   const data = await response.json()

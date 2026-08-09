@@ -16,7 +16,12 @@ export function useZtmData(fetchFunction) {
     try {
       data.value = await fetchFunction(...args)
     } catch (err) {
-      error.value = err?.message ?? 'Błąd pobierania danych'
+      // The raw message is an English engine string ("Failed to fetch",
+      // "Unexpected token '<'..."), so it goes to the console for debugging
+      // while the user gets the interface language.
+      console.error(err)
+
+      error.value = 'Błąd pobierania danych'
     } finally {
       loading.value = false
     }
