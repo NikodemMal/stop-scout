@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# vite-plugin-pwa artifacts (service worker generated in dev mode)
+dev-dist
+
+# Secrets
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
