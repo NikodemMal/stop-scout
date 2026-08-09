@@ -1,35 +1,70 @@
 <script setup>
 import { ref } from 'vue'
 import bcrypt from 'bcryptjs'
+import { useRouter } from 'vue-router'
 
 import { db } from '../services/db'
 
+const BCRYPT_ROUNDS = 10
+const MIN_PASSWORD_LENGTH = 8
+
+const router = useRouter()
+
 const username = ref('')
 const password = ref('')
+const errorMessage = ref('')
+const busy = ref(false)
 
 const register = async () => {
-  const hashedPassword = await bcrypt.hash(password.value, 10)
+  errorMessage.value = ''
 
-  await db.users.add({
-    username: username.value,
-    password: hashedPassword
-  })
+  const login = username.value.trim()
 
-  alert('Użytkownik utworzony!')
+  if (!login) {
+    errorMessage.value = 'Podaj login.'
+    return
+  }
+
+  if (password.value.length < MIN_PASSWORD_LENGTH) {
+    errorMessage.value = `Hasło musi mieć co najmniej ${MIN_PASSWORD_LENGTH} znaków.`
+    return
+  }
+
+  busy.value = true
+
+  try {
+    const existing = await db.users.where('username').equals(login).first()
+
+    if (existing) {
+      errorMessage.value = 'Taki login już istnieje.'
+      return
+    }
+
+    await db.users.add({
+      username: login,
+      password: await bcrypt.hash(password.value, BCRYPT_ROUNDS)
+    })
+
+    router.push('/login')
+  } finally {
+    busy.value = false
+  }
 }
 </script>
 
 <template>
   <div class="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-    <div class="bg-slate-800 p-8 rounded-xl w-96">
-      <h1 class="text-3xl font-bold mb-6">
-        Rejestracja
-      </h1>
+    <form
+      @submit.prevent="register"
+      class="bg-slate-800 p-8 rounded-xl w-96"
+    >
+      <h1 class="text-3xl font-bold mb-6">Rejestracja</h1>
 
       <input
         v-model="username"
         type="text"
         placeholder="Login"
+        autocomplete="username"
         class="w-full mb-4 p-3 rounded bg-slate-700"
       />
 
@@ -37,15 +72,26 @@ const register = async () => {
         v-model="password"
         type="password"
         placeholder="Hasło"
+        autocomplete="new-password"
         class="w-full mb-4 p-3 rounded bg-slate-700"
       />
 
+      <p v-if="errorMessage" class="mb-4 text-red-400">{{ errorMessage }}</p>
+
       <button
-        @click="register"
-        class="w-full bg-green-600 hover:bg-green-700 p-3 rounded"
+        type="submit"
+        :disabled="busy"
+        class="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-600 p-3 rounded"
       >
-        Zarejestruj
+        {{ busy ? 'Tworzenie konta...' : 'Zarejestruj' }}
       </button>
-    </div>
+
+      <p class="mt-4 text-sm text-gray-400">
+        Masz już konto?
+        <RouterLink to="/login" class="text-blue-400 hover:underline">
+          Zaloguj się
+        </RouterLink>
+      </p>
+    </form>
   </div>
 </template>

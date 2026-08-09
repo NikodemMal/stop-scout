@@ -1,71 +1,48 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { fetchStops } from '../services/ztmApi'
 import { db } from '../services/db'
 import { useAuthStore } from '../stores/auth'
-import { useRouter } from 'vue-router'
-import DeparturesBoard from '../components/DeparturesBoard.vue'
-import { computed } from 'vue'
 import { useZtmData } from '../composables/useZtmData'
+import DeparturesBoard from '../components/DeparturesBoard.vue'
+
+const VISIBLE_STOPS_LIMIT = 20
+
 const auth = useAuthStore()
 const router = useRouter()
 
-const {
-  data: rawStops,
-  loading,
-  error,
-  load
-} = useZtmData(fetchStops)
+const { data: rawStops, loading, error, load } = useZtmData(fetchStops)
 
 const favoriteStops = ref([])
 const searchQuery = ref('')
 
-const stops = computed(() => {
-  return Array.from(
-    new Map(
-      (rawStops.value || []).map(stop => [stop.stopId, stop])
-    ).values()
-  )
-})
-// stop name filtering
+// One stop can appear several times, once per physical pole.
+const stops = computed(() =>
+  Array.from(new Map((rawStops.value ?? []).map((stop) => [stop.stopId, stop])).values())
+)
+
 const filteredStops = computed(() => {
   if (!searchQuery.value) return stops.value
 
-  return stops.value.filter(stop =>
-    stop.stopName
-      ?.toLowerCase()
-      .includes(searchQuery.value.toLowerCase())
-  )
+  const query = searchQuery.value.toLowerCase()
+
+  return stops.value.filter((stop) => stop.stopName?.toLowerCase().includes(query))
 })
 
-const logout = () => {
-  auth.logout()
-  router.push('/login')
-}
+const visibleStops = computed(() => filteredStops.value.slice(0, VISIBLE_STOPS_LIMIT))
 
-// const loadStops = async () => {
-//   const data = await fetchStops()
-
-//   console.log('STOPS:', data)
-
-//   stops.value = data || []
-// }
+const favoriteIds = computed(() => new Set(favoriteStops.value.map((item) => item.stopId)))
 
 const loadFavorites = async () => {
   if (!auth.user) return
 
-  favoriteStops.value = await db.favoriteStops
-    .where('userId')
-    .equals(auth.user.id)
-    .toArray()
+  favoriteStops.value = await db.favoriteStops.where('userId').equals(auth.user.id).toArray()
 }
 
 const addFavorite = async (stop) => {
-  if (!auth.user) {
-    alert('Najpierw się zaloguj')
-    return
-  }
+  if (!auth.user || favoriteIds.value.has(stop.stopId)) return
 
   await db.favoriteStops.add({
     userId: auth.user.id,
@@ -78,8 +55,12 @@ const addFavorite = async (stop) => {
 
 const removeFavorite = async (id) => {
   await db.favoriteStops.delete(id)
-
   await loadFavorites()
+}
+
+const logout = () => {
+  auth.logout()
+  router.push('/login')
 }
 
 onMounted(async () => {
@@ -90,58 +71,50 @@ onMounted(async () => {
 
 <template>
   <div class="min-h-screen bg-slate-900 text-white p-8">
+    <header class="flex justify-between items-center mb-8">
+      <h1 class="text-4xl font-bold">Stop Scout 🚋</h1>
 
-    <h1 class="text-4xl font-bold mb-6">
-      Stop Scout 🚋
-    </h1>
+      <button @click="logout" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded">
+        Wyloguj
+      </button>
+    </header>
 
-    <div class="mb-10">
-      <h2 class="text-2xl mb-4">
-        Ulubione przystanki
-      </h2>
+    <section class="mb-10">
+      <h2 class="text-2xl mb-4">Ulubione przystanki</h2>
+
+      <p v-if="favoriteStops.length === 0" class="text-gray-400">
+        Nie masz jeszcze ulubionych przystanków. Dodaj je z listy poniżej.
+      </p>
 
       <div
         v-for="favorite in favoriteStops"
         :key="favorite.id"
         class="bg-slate-800 p-4 rounded-xl mb-4"
       >
-
         <div class="flex justify-between items-center mb-2">
-          <span>
-            {{ favorite.stopName }}
-          </span>
+          <span>{{ favorite.stopName }}</span>
 
           <button
             @click="removeFavorite(favorite.id)"
-            class="bg-red-600 px-4 py-2 rounded"
+            class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded"
           >
             Usuń
           </button>
         </div>
 
-        <DeparturesBoard
-          :stopId="favorite.stopId"
-          :stopName="favorite.stopName"
-        />
-
+        <DeparturesBoard :stopId="favorite.stopId" :stopName="favorite.stopName" />
       </div>
-    </div>
+    </section>
 
-    <div>
-      <h2 class="text-2xl mb-4">
-        Lista przystanków
-      </h2>
+    <section>
+      <h2 class="text-2xl mb-4">Lista przystanków</h2>
 
-      <p class="mb-4">
-        Liczba przystanków: {{ stops.length }}
-      </p>
-      <p v-if="loading" class="mb-4 text-yellow-400">
-        Ładowanie przystanków...
+      <p v-if="loading" class="mb-4 text-yellow-400">Ładowanie przystanków...</p>
+      <p v-else-if="error" class="mb-4 text-red-400">{{ error }}</p>
+      <p v-else class="mb-4 text-gray-400">
+        Znaleziono {{ filteredStops.length }} z {{ stops.length }} przystanków.
       </p>
 
-      <p v-if="error" class="mb-4 text-red-400">
-        {{ error }}
-      </p>
       <input
         v-model="searchQuery"
         type="text"
@@ -150,35 +123,27 @@ onMounted(async () => {
       />
 
       <div
-        v-for="stop in filteredStops.slice(0, 20)"
+        v-for="stop in visibleStops"
         :key="stop.stopId"
-        class="bg-slate-800 p-4 rounded-xl mb-3 flex justify-between"
+        class="bg-slate-800 p-4 rounded-xl mb-3 flex justify-between items-center"
       >
         <span>
           {{ stop.stopName }}
+          <small v-if="stop.zoneName" class="text-gray-400 ml-2">{{ stop.zoneName }}</small>
         </span>
 
         <button
           @click="addFavorite(stop)"
-          class="bg-green-600 px-4 py-2 rounded"
+          :disabled="favoriteIds.has(stop.stopId)"
+          class="bg-green-600 hover:bg-green-700 disabled:bg-slate-600 disabled:cursor-not-allowed px-4 py-2 rounded"
         >
-          Dodaj
+          {{ favoriteIds.has(stop.stopId) ? 'Dodano' : 'Dodaj' }}
         </button>
       </div>
-    </div>
 
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-4xl font-bold">
-        Stop Scout 🚋
-      </h1>
-
-      <button
-        @click="logout"
-        class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded"
-      >
-        Wyloguj
-      </button>
-  </div>
-
+      <p v-if="filteredStops.length > VISIBLE_STOPS_LIMIT" class="text-gray-400 mt-4">
+        Pokazano {{ VISIBLE_STOPS_LIMIT }} wyników. Zawęź wyszukiwanie, żeby znaleźć resztę.
+      </p>
+    </section>
   </div>
 </template>

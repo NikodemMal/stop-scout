@@ -1,58 +1,54 @@
 <script setup>
 import { ref } from 'vue'
 import bcrypt from 'bcryptjs'
+import { useRouter } from 'vue-router'
 
 import { db } from '../services/db'
 import { useAuthStore } from '../stores/auth'
-import { useRouter } from 'vue-router'
 
 const auth = useAuthStore()
 const router = useRouter()
 
 const username = ref('')
 const password = ref('')
+const errorMessage = ref('')
+const busy = ref(false)
 
 const login = async () => {
-  const user = await db.users
-    .where('username')
-    .equals(username.value)
-    .first()
+  errorMessage.value = ''
+  busy.value = true
 
-  if (!user) {
-    alert('Nie znaleziono użytkownika')
-    return
+  try {
+    const user = await db.users.where('username').equals(username.value.trim()).first()
+
+    // Same message for a wrong username and a wrong password, otherwise
+    // the form tells an attacker which accounts exist.
+    if (!user || !(await bcrypt.compare(password.value, user.password))) {
+      errorMessage.value = 'Nieprawidłowy login lub hasło.'
+      return
+    }
+
+    auth.login(user)
+    router.push('/')
+  } finally {
+    busy.value = false
   }
-
-  const validPassword = await bcrypt.compare(
-    password.value,
-    user.password
-  )
-
-  if (!validPassword) {
-    alert('Błędne hasło')
-    return
-  }
-
-  auth.login(user)
-
-  alert('Zalogowano!')
-  auth.login(user)
-
-  router.push('/')
 }
 </script>
 
 <template>
   <div class="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-    <div class="bg-slate-800 p-8 rounded-xl w-96">
-      <h1 class="text-3xl font-bold mb-6">
-        Login
-      </h1>
+    <form
+      @submit.prevent="login"
+      class="bg-slate-800 p-8 rounded-xl w-96"
+    >
+      <h1 class="text-3xl font-bold mb-6">Logowanie</h1>
 
       <input
         v-model="username"
         type="text"
         placeholder="Login"
+        autocomplete="username"
         class="w-full mb-4 p-3 rounded bg-slate-700"
       />
 
@@ -60,15 +56,26 @@ const login = async () => {
         v-model="password"
         type="password"
         placeholder="Hasło"
+        autocomplete="current-password"
         class="w-full mb-4 p-3 rounded bg-slate-700"
       />
 
+      <p v-if="errorMessage" class="mb-4 text-red-400">{{ errorMessage }}</p>
+
       <button
-        @click="login"
-        class="w-full bg-blue-600 hover:bg-blue-700 p-3 rounded"
+        type="submit"
+        :disabled="busy"
+        class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 p-3 rounded"
       >
-        Zaloguj
+        {{ busy ? 'Logowanie...' : 'Zaloguj' }}
       </button>
-    </div>
+
+      <p class="mt-4 text-sm text-gray-400">
+        Nie masz konta?
+        <RouterLink to="/register" class="text-blue-400 hover:underline">
+          Zarejestruj się
+        </RouterLink>
+      </p>
+    </form>
   </div>
 </template>

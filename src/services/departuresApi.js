@@ -1,29 +1,38 @@
 import { db } from './db'
 
+const DEPARTURES_URL = 'https://ckan2.multimediagdansk.pl/departures'
+
+/**
+ * Departures for a stop, falling back to the local cache when the request fails.
+ *
+ * The return shape is the same either way, so the UI can tell "we are offline,
+ * this is the last known state" from "we are online and nothing is due".
+ * Without the flag both look the same and stale times read as live ones.
+ *
+ * @returns {Promise<{departures: Array, fromCache: boolean, updatedAt: number|null}>}
+ */
 export const fetchDepartures = async (stopId) => {
-    try {
-    const res = await fetch(
-      `https://ckan2.multimediagdansk.pl/departures?stopId=${stopId}`
-    )
+  try {
+    const response = await fetch(`${DEPARTURES_URL}?stopId=${stopId}`)
 
-    const data = await res.json()
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
+    }
 
-    console.log('DEPARTURES RAW:', data)
+    const data = await response.json()
+    const departures = data.departures ?? []
+    const updatedAt = Date.now()
 
-    await db.departures.put({
-      stopId,
-      data: data.departures,
-      updatedAt: Date.now()
-    })
+    await db.departures.put({ stopId, data: departures, updatedAt })
 
-    return data.departures || []
-  }
-
-  catch (err) {
-    console.log('OFFLINE MODE')
-
+    return { departures, fromCache: false, updatedAt }
+  } catch {
     const cached = await db.departures.get(stopId)
 
-    return cached?.data || []
+    return {
+      departures: cached?.data ?? [],
+      fromCache: true,
+      updatedAt: cached?.updatedAt ?? null
+    }
   }
 }

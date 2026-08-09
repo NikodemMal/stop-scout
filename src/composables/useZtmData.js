@@ -1,5 +1,9 @@
 import { ref } from 'vue'
 
+/**
+ * Wraps a fetching function in loading and error state so views do not
+ * repeat the same try/catch.
+ */
 export function useZtmData(fetchFunction) {
   const data = ref([])
   const loading = ref(false)
@@ -11,23 +15,12 @@ export function useZtmData(fetchFunction) {
 
     try {
       data.value = await fetchFunction(...args)
-    }
-
-    catch (err) {
-      console.error(err)
-
-      error.value = 'Błąd pobierania danych'
-    }
-
-    finally {
+    } catch (err) {
+      error.value = err?.message ?? 'Błąd pobierania danych'
+    } finally {
       loading.value = false
     }
   }
 
-  return {
-    data,
-    loading,
-    error,
-    load
-  }
+  return { data, loading, error, load }
 }
