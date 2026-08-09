@@ -12,33 +12,44 @@ transit data. Works offline.
 ## Features
 
 - Live departure board with delays, refreshed every 10 seconds
-- Search across ~1500 ZTM stops in the Gdansk area
+- Search across the ZTM stop list, diacritic-insensitive, so "gdansk" finds "Gdańsk"
 - Favourite stops, stored per user
-- Offline mode: the last known departures stay visible, and the board says
-  the data is stale instead of showing it as current
+- Offline mode: the last known departures stay visible and are labelled as such
 - Installable as a Progressive Web App
 
-## Caching
+## Caching, and what the labels mean
 
-Caching runs on two levels.
+Departures and the stop list are cached differently on purpose.
 
-**Service worker (Workbox):**
+**The stop list** goes through the service worker with `StaleWhileRevalidate`:
+served from cache immediately, refreshed in the background when there is a
+network. Cache-first with an expiry was the obvious choice and the wrong one,
+because Workbox treats an aged-out entry as a miss and falls through to the
+network, which broke the stop list offline after a day.
 
-| Resource | Strategy | Reason |
+**Departures are deliberately not handled by the service worker.** A
+`NetworkFirst` route there resolves an offline request with `ok: true` from its
+own cache, so the app cannot tell a live response from a cached one and would
+present minutes-old times as current. They are cached in IndexedDB (Dexie)
+instead, where the app owns the metadata and can label what it is showing.
+
+`fetchDepartures` therefore reports one of three states, because they need
+different messages:
+
+| `status` | Meaning | Shown as |
 |---|---|---|
-| `/departures` | `NetworkFirst`, 5 min | departures change constantly, cache is only a safety net |
-| `/stops.json` | `CacheFirst`, 24 h | the stop list changes once a day |
+| `live` | fresh from the API | no badge |
+| `offline` | request failed, `navigator.onLine` is false | amber "Brak sieci - dane z HH:MM" |
+| `error` | request failed while online, so the ZTM service is down | red "Serwis ZTM nie odpowiada" |
 
-**Application level:** `src/services/departuresApi.js` catches a failed request,
-reads the last response from IndexedDB (Dexie) and returns
-`{ departures, fromCache, updatedAt }`.
+Collapsing the last two into one "offline" message tells a user with a working
+connection to go and fix their connection.
 
-The second level is needed because the service worker is not active on the
-first visit, and a request that fails mid-flight still has to resolve to
-something the UI can render. `fromCache` is what lets the board show an
-"Offline" badge with a timestamp rather than passing stale times off as live.
+The cache write sits outside the request's `try`, so a storage failure (private
+browsing, blocked site data, quota) cannot discard a response that arrived
+successfully.
 
-Covered by `src/services/departuresApi.test.js`.
+All of this is covered by `src/services/departuresApi.test.js`.
 
 ## Stack
 
@@ -59,20 +70,28 @@ npm run build   # production build
 The raw dump from Otwarty Gdansk is about 14.4 MB: 16 timetable days, roughly
 2600 stops each, 23 fields per stop. The app uses one day and five fields.
 
-`npm run trim-stops` cuts `public/stops.json` down to the newest day and the
-fields that are actually rendered, which brings it to about 0.16 MB.
+`npm run trim-stops` reduces `public/stops.json` to the newest day and the
+fields that are rendered, which brings it to about 0.16 MB.
+
+Entries are individual poles, not stops: 1530 poles carry about 700 distinct
+names, so the list shows `stopDesc` next to the name. Without it a search for
+"dworzec" returns a dozen rows reading "Dworzec Główny" with nothing to tell
+them apart.
 
 ## Known limitations
 
 This started as a university project and the scope reflects that:
 
 - Authentication is client-side. Users live in IndexedDB and passwords are
-  hashed with `bcryptjs` in the browser. There is no backend, so this shows the
-  login flow and password hashing, not a usable auth system. Real auth needs a
-  server, HTTP-only cookies or tokens, and rate limiting.
+  hashed with `bcryptjs` in the browser. Only `{ id, username }` is kept in
+  localStorage, never the hash, but there is still no backend: this shows the
+  login flow, not a usable auth system. Real auth needs a server, HTTP-only
+  cookies or tokens, and rate limiting.
 - The stop list is a snapshot refreshed by re-running the trim script, not a
   live feed.
 - Search results are capped at 20 items instead of virtualised.
+- Polling pauses on a hidden tab, but each favourite still polls on its own
+  timer rather than through one batched request.
 - The PWA icon is an SVG. App stores would need 192 and 512 px rasters.
 
 ## Data
