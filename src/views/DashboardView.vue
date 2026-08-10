@@ -60,10 +60,15 @@ const addFavorite = async (stop) => {
   actionError.value = ''
 
   try {
+    // subName is stored, not looked up later, so a favourite still names its
+    // pole once the stop list has been refreshed by the trim script. Dexie
+    // indexes only the fields in its schema, so an extra property needs no
+    // version bump.
     await db.favoriteStops.add({
       userId: auth.user.id,
       stopId: stop.stopId,
-      stopName: stop.stopName
+      stopName: stop.stopName,
+      subName: stop.subName
     })
 
     await loadFavorites()
@@ -126,8 +131,16 @@ onMounted(async () => {
       >
         <div class="flex justify-between items-center gap-3 mb-2">
           <!-- The only place the name is rendered. The board used to print it a
-               second time, so every card read its stop twice. -->
-          <h3 class="text-lg font-bold">{{ favorite.stopName }}</h3>
+               second time, so every card read its stop twice. The pole number
+               is here too, because favouriting two poles of one stop otherwise
+               produces two cards with the same heading. Older favourites were
+               saved without it, hence the guard. -->
+          <h3 class="text-lg font-bold">
+            {{ favorite.stopName }}
+            <span v-if="favorite.subName" class="text-sm font-normal text-gray-300">
+              słupek {{ favorite.subName }}
+            </span>
+          </h3>
 
           <button
             @click="removeFavorite(favorite.id)"
@@ -166,8 +179,14 @@ onMounted(async () => {
       >
         <span>
           {{ stop.stopName }}
-          <!-- Most names repeat across poles, so the description is what makes
-               the rows tell each other apart. -->
+          <!-- 535 of 696 names repeat across poles, so the name alone cannot
+               identify a row. The pole number is what is printed on the sign
+               and it is never empty; stopDesc only helps when it says something
+               other than the name, which is true for 619 of 1530 poles. -->
+          <small v-if="stop.subName" class="text-gray-300 ml-2">
+            słupek {{ stop.subName }}
+          </small>
+          <small v-if="stop.type" class="text-gray-400 ml-2">{{ stop.type }}</small>
           <small v-if="stop.stopDesc && stop.stopDesc !== stop.stopName" class="text-gray-400 ml-2">
             {{ stop.stopDesc }}
           </small>

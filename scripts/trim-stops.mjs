@@ -2,7 +2,7 @@
  * Shrinks public/stops.json to what the app actually renders.
  *
  * The raw Otwarty Gdansk dump holds 16 timetable days, ~2600 stops each,
- * 23 fields per stop. We render one day and five fields.
+ * 23 fields per stop. We render one day and six fields.
  *
  * Usage: node scripts/trim-stops.mjs [input] [output]
  */
@@ -12,8 +12,12 @@ import { readFileSync, writeFileSync, statSync } from 'node:fs'
 const INPUT = process.argv[2] ?? 'public/stops.json'
 const OUTPUT = process.argv[3] ?? 'public/stops.json'
 
-// stopDesc and zoneName stay because Gdansk has plenty of stops sharing a name.
-const KEPT_FIELDS = ['stopId', 'stopName', 'stopDesc', 'zoneName', 'type']
+// subName is the pole number printed on the physical sign, and it is what
+// actually tells poles sharing a name apart: stopDesc repeats the name for 911
+// of the 1530 poles, so on its own it left twelve identical "Dworzec Glowny"
+// rows in the list. stopDesc still earns its place for the cases where it says
+// something else ("Sopot Sikorskiego").
+const KEPT_FIELDS = ['stopId', 'stopName', 'subName', 'stopDesc', 'zoneName', 'type']
 
 const sizeInMb = (path) => (statSync(path).size / 1024 / 1024).toFixed(2)
 

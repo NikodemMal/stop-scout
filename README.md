@@ -80,15 +80,24 @@ npm run build   # production build
 ## The stop list
 
 The raw dump from Otwarty Gdansk is about 14.4 MB: 16 timetable days, roughly
-2600 stops each, 23 fields per stop. The app uses one day and five fields.
+2600 stops each, 23 fields per stop. The app uses one day and six fields.
 
 `npm run trim-stops` reduces `public/stops.json` to the newest day and the
-fields that are rendered, which brings it to about 0.16 MB.
+fields that are rendered, which brings it to about 0.18 MB.
 
-Entries are individual poles, not stops: 1530 poles carry about 700 distinct
-names, so the list shows `stopDesc` next to the name. Without it a search for
-"dworzec" returns a dozen rows reading "Dworzec Główny" with nothing to tell
-them apart.
+Entries are individual poles, not stops: 1530 poles carry 696 distinct names,
+and 535 of those names are used more than once. "Dworzec Główny" alone is
+twelve poles, so the name cannot identify a row on its own.
+
+The list therefore shows `subName`, the pole number printed on the physical
+sign, which is set for all 1530 entries. `stopDesc` was doing this job first
+and was the wrong field for it: it repeats the name verbatim for 911 of the
+poles, including all twelve at Dworzec Główny, so the rows it was meant to
+separate were exactly the rows it could not. It is still rendered when it says
+something else, such as "Sopot Sikorskiego", along with the vehicle type.
+
+Name plus pole number still collides 22 times out of 1530. Those need the
+coordinates, which the trim script drops.
 
 ## Known limitations
 
