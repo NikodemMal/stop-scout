@@ -6,10 +6,10 @@ working when the network drops. It runs on the city's open ZTM data.
 I wrote it as a university project and then went back and fixed the things that
 were wrong with it.
 
-<!-- Add these together with docs/screenshot.png:
 ![Stop Scout](docs/screenshot.png)
 
-**[Live demo](https://stop-scout.vercel.app)** once it is deployed.
+<!-- Add the live link once this is deployed:
+**[Live demo](https://stop-scout.vercel.app)**
 -->
 
 ## What it does
