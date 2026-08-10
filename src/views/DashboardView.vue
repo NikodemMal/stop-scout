@@ -179,17 +179,15 @@ onMounted(async () => {
       >
         <span>
           {{ stop.stopName }}
-          <!-- 535 of 696 names repeat across poles, so the name alone cannot
-               identify a row. The pole number is what is printed on the sign
-               and it is never empty; stopDesc only helps when it says something
-               other than the name, which is true for 619 of 1530 poles. -->
+          <!-- 535 of the 696 names are used by more than one pole, so the name
+               alone cannot identify a row. The pole number is printed on the
+               sign and is set for every entry, which makes it the one field
+               that separates them. -->
           <small v-if="stop.subName" class="text-gray-300 ml-2">
             słupek {{ stop.subName }}
           </small>
           <small v-if="stop.type" class="text-gray-400 ml-2">{{ stop.type }}</small>
-          <small v-if="stop.stopDesc && stop.stopDesc !== stop.stopName" class="text-gray-400 ml-2">
-            {{ stop.stopDesc }}
-          </small>
+          <small v-if="stop.onDemand" class="text-gray-400 ml-2">na żądanie</small>
           <small v-if="stop.zoneName" class="text-gray-500 ml-2">{{ stop.zoneName }}</small>
         </span>
 

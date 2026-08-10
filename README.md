@@ -83,18 +83,33 @@ The raw dump from Otwarty Gdansk is about 14.4 MB: 16 timetable days, roughly
 2600 stops each, 23 fields per stop. The app uses one day and six fields.
 
 `npm run trim-stops` reduces `public/stops.json` to the newest day and the
-fields that are rendered, which brings it to about 0.18 MB.
+fields that are rendered, which brings it to about 0.15 MB.
 
 Entries are individual poles, not stops: 1530 poles carry 696 distinct names,
 and 535 of those names are used more than once. "Dworzec Główny" alone is
 twelve poles, so the name cannot identify a row on its own.
 
 The list therefore shows `subName`, the pole number printed on the physical
-sign, which is set for all 1530 entries. `stopDesc` was doing this job first
-and was the wrong field for it: it repeats the name verbatim for 911 of the
-poles, including all twelve at Dworzec Główny, so the rows it was meant to
-separate were exactly the rows it could not. It is still rendered when it says
-something else, such as "Sopot Sikorskiego", along with the vehicle type.
+sign, which is set for all 1530 entries, next to the vehicle type.
+
+`stopDesc` was doing this job first and was the wrong field for it. Counted
+across the 1530 poles it splits into three groups, none of which identifies
+anything:
+
+| Group | Count | Example |
+|---|---|---|
+| identical to the name | 911 | all twelve at Dworzec Główny |
+| the name plus a city `zoneName` already gives | 585 | `Kameliowa` → `Gdynia Kameliowa` |
+| a spelling variant of the same name | 34 | `al. Płażyńskiego` → `Aleja Płażyńskiego` |
+
+So the rows it was meant to separate were exactly the rows it could not, and
+where it did render it printed the name a second time. The field is dropped.
+
+The one fact buried in it was the `(N/Ż)` request-stop marker, which `onDemand`
+carries as a boolean, so that is kept and shown as "na żądanie" instead. The
+two disagree, and neither is authoritative: 414 poles carry the marker in
+`stopDesc` while 366 have `onDemand` set, overlapping on 361. The boolean is
+used because it is the field meant for this, not because it is provably right.
 
 Name plus pole number still collides 22 times out of 1530. Those need the
 coordinates, which the trim script drops.

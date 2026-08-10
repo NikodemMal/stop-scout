@@ -12,12 +12,16 @@ import { readFileSync, writeFileSync, statSync } from 'node:fs'
 const INPUT = process.argv[2] ?? 'public/stops.json'
 const OUTPUT = process.argv[3] ?? 'public/stops.json'
 
-// subName is the pole number printed on the physical sign, and it is what
-// actually tells poles sharing a name apart: stopDesc repeats the name for 911
-// of the 1530 poles, so on its own it left twelve identical "Dworzec Glowny"
-// rows in the list. stopDesc still earns its place for the cases where it says
-// something else ("Sopot Sikorskiego").
-const KEPT_FIELDS = ['stopId', 'stopName', 'subName', 'stopDesc', 'zoneName', 'type']
+// subName is the pole number printed on the physical sign and the only field
+// that reliably tells poles sharing a name apart.
+//
+// stopDesc is deliberately dropped. It looked like the field for this and is
+// not: of 1530 poles it repeats the name verbatim for 911, prefixes it with a
+// city already given by zoneName for most of the remaining 585 ("Gdynia
+// Kameliowa"), and the last 34 are spelling variants of the same name ("al.
+// Plazynskiego" -> "Aleja Plazynskiego"). The one real fact buried in it is the
+// "(N/Z)" request-stop marker, which onDemand carries as a proper boolean.
+const KEPT_FIELDS = ['stopId', 'stopName', 'subName', 'zoneName', 'type', 'onDemand']
 
 const sizeInMb = (path) => (statSync(path).size / 1024 / 1024).toFixed(2)
 
