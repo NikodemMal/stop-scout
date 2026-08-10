@@ -51,6 +51,18 @@ successfully.
 
 All of this is covered by `src/services/departuresApi.test.js`.
 
+## Delays
+
+ZTM sends `delayInSeconds`, including negative values for a vehicle running
+ahead of its timetable, so an early departure is real data rather than a bug.
+
+The board prints minutes, not raw seconds: `+403s` is a number the passenger
+has to convert. Anything under a minute reads "punktualnie", because departure
+times are rendered to the minute anyway, so a smaller deviation cannot be seen
+in the time itself and the values jitter by a few seconds between polls. The
+colour is driven by the same threshold, so the text and the colour can never
+disagree.
+
 ## Stack
 
 Vue 3 (`<script setup>`), Vite, Pinia, Vue Router, Tailwind CSS,

@@ -16,7 +16,7 @@ describe('v-delay-color', () => {
   it('paints an early departure green', () => {
     const el = createElement()
 
-    delayColor.mounted(el, { value: -30 })
+    delayColor.mounted(el, { value: -120 })
 
     expect(el.style.color).toBe('green')
   })
@@ -26,6 +26,16 @@ describe('v-delay-color', () => {
 
     delayColor.mounted(el, { value: 0 })
 
+    expect(el.style.color).toBe('white')
+  })
+
+  it('leaves a sub-minute deviation white, matching what the board prints', () => {
+    const el = createElement()
+
+    delayColor.mounted(el, { value: 30 })
+    expect(el.style.color).toBe('white')
+
+    delayColor.updated(el, { value: -30 })
     expect(el.style.color).toBe('white')
   })
 

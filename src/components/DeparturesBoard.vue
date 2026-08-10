@@ -1,12 +1,12 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { fetchDepartures } from '../services/departuresApi'
+import { formatDelay } from '../utils/delay'
 
 const REFRESH_MS = 10_000
 
 const props = defineProps({
-  stopId: Number,
-  stopName: String
+  stopId: Number
 })
 
 const departures = ref([])
@@ -64,9 +64,10 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="bg-slate-800 p-4 rounded-xl mt-3">
-    <div class="flex justify-between items-center gap-3 mb-2">
-      <h3 class="text-lg font-bold">{{ stopName }}</h3>
-
+    <!-- The stop name belongs to the card that owns this board, so repeating it
+         here printed every favourite twice. Rendered only when there is a badge
+         to show, otherwise a live board opened with an empty row. -->
+    <div v-if="status !== 'live'" class="flex justify-end mb-2">
       <span
         v-if="status === 'offline'"
         class="text-xs bg-amber-900 text-amber-200 px-2 py-1 rounded"
@@ -74,10 +75,7 @@ onBeforeUnmount(() => {
         Brak sieci<template v-if="updatedAt"> - dane z {{ formatTime(updatedAt) }}</template>
       </span>
 
-      <span
-        v-else-if="status === 'error'"
-        class="text-xs bg-red-900 text-red-200 px-2 py-1 rounded"
-      >
+      <span v-else class="text-xs bg-red-900 text-red-200 px-2 py-1 rounded">
         Serwis ZTM nie odpowiada<template v-if="updatedAt">
           - dane z {{ formatTime(updatedAt) }}</template>
       </span>
@@ -103,7 +101,7 @@ onBeforeUnmount(() => {
         {{ formatTime(departure.estimatedTime) }}
 
         <span v-delay-color="departure.delayInSeconds" class="ml-2">
-          {{ departure.delayInSeconds > 0 ? '+' : '' }}{{ departure.delayInSeconds }}s
+          {{ formatDelay(departure.delayInSeconds) }}
         </span>
       </div>
     </div>

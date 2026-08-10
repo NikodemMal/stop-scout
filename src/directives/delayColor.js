@@ -1,9 +1,13 @@
+import { ON_TIME_WITHIN_SECONDS } from '../utils/delay'
+
+// The threshold is shared with formatDelay on purpose: a deviation the board
+// spells out as "punktualnie" must not be painted red or green underneath it.
 const setColor = (el, delay) => {
-  if (delay > 0) {
+  if (delay >= ON_TIME_WITHIN_SECONDS) {
     el.style.color = 'red'
   }
 
-  else if (delay < 0) {
+  else if (delay <= -ON_TIME_WITHIN_SECONDS) {
     el.style.color = 'green'
   }
 

@@ -124,18 +124,20 @@ onMounted(async () => {
         :key="favorite.id"
         class="bg-slate-800 p-4 rounded-xl mb-4"
       >
-        <div class="flex justify-between items-center mb-2">
-          <span>{{ favorite.stopName }}</span>
+        <div class="flex justify-between items-center gap-3 mb-2">
+          <!-- The only place the name is rendered. The board used to print it a
+               second time, so every card read its stop twice. -->
+          <h3 class="text-lg font-bold">{{ favorite.stopName }}</h3>
 
           <button
             @click="removeFavorite(favorite.id)"
-            class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded"
+            class="shrink-0 bg-red-600 hover:bg-red-700 px-4 py-2 rounded"
           >
             Usuń
           </button>
         </div>
 
-        <DeparturesBoard :stopId="favorite.stopId" :stopName="favorite.stopName" />
+        <DeparturesBoard :stopId="favorite.stopId" />
       </div>
     </section>
 
